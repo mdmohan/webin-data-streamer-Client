@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="BUILDER" default="build">
+
+	<path id="project.classpath">
+		<fileset dir="lib">
+			<include name="**/*.jar" />
+		</fileset>
+	</path>
+
+	<typedef resource="org/tigris/subversion/svnant/svnantlib.xml" classpathref="project.classpath" />
+
+	<loadproperties srcfile="build.properties" />
+
+	<property name="target.dir" value="${basedir}" />
+
+	<tstamp>
+		<format property="buildtime" pattern="yyyyMMddhhmm" />
+	</tstamp>
+
+	<condition property="svn.path" value="/trunk" else="/tags/${svn.tag}">
+		<matches pattern="^$" string="${svn.tag}" />
+	</condition>
+
+	<target name="clear">
+	        <delete dir="${svn.tmp.dir}" />
+	</target>
+
+	<target name="build" depends="clear">
+
+		<property name="svn.tmp.dir" value="${java.io.tmpdir}/ftp4j-builder" />
+		
+		<property name="author" value="${svn.user}" />
+
+		<delete dir="${svn.tmp.dir}" />
+
+		<svn username="${svn.user}" password="${svn.pass}">
+			<export srcUrl="${svn.url}${svn.path}" destPath="${svn.tmp.dir}" />
+			<info target="${svn.url}${svn.path}" />
+		</svn>
+
+		<ant dir="${svn.tmp.dir}" />
+		
+		<ant target="clear" />
+
+	</target>
+
+</project>
