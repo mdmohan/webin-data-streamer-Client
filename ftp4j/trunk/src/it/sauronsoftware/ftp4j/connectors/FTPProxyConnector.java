@@ -24,7 +24,7 @@ import it.sauronsoftware.ftp4j.FTPIllegalReplyException;
 import it.sauronsoftware.ftp4j.FTPReply;
 
 import java.io.IOException;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This one connects a remote host via a FTP proxy which supports the SITE or

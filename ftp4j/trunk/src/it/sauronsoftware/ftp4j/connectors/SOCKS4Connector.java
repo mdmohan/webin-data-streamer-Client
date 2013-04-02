@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetAddress;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This one connects a remote ftp host through a SOCKS4/4a proxy server.

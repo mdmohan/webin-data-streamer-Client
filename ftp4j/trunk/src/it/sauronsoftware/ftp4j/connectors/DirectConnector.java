@@ -21,7 +21,7 @@ package it.sauronsoftware.ftp4j.connectors;
 import it.sauronsoftware.ftp4j.FTPConnector;
 
 import java.io.IOException;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * The DirectConnector connects the remote host with a straight socket

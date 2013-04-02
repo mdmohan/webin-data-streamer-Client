@@ -24,7 +24,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This abstract class is the base for creating a connector. Connectors are used

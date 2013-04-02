@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 import javax.net.ssl.SSLSocketFactory;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This class is used to represent a communication channel with a FTP server.

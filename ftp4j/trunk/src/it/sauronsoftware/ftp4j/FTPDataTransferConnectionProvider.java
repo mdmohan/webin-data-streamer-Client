@@ -18,7 +18,7 @@
  */
 package it.sauronsoftware.ftp4j;
 
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedSocket;
 
 
 /**

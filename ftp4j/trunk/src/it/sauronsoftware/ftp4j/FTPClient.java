@@ -56,8 +56,8 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 import javax.net.ssl.SSLSocketFactory;
-import udt.UDPEndPoint;
-import udt.util.UnifiedSocket;
+import main.java.udt.UDPEndPoint;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This class implements a FTP client.

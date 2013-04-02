@@ -22,8 +22,8 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
-import udt.util.UnifiedServerSocket;
-import udt.util.UnifiedSocket;
+import main.java.udt.util.UnifiedServerSocket;
+import main.java.udt.util.UnifiedSocket;
 
 /**
  * This class implements a local server to make data transfer with the remote
