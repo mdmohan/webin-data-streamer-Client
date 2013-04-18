@@ -57,6 +57,7 @@ import java.util.zip.InflaterInputStream;
 
 import javax.net.ssl.SSLSocketFactory;
 import main.java.udt.UDPEndPoint;
+import main.java.udt.UDTOutputStream;
 import main.java.udt.util.UnifiedSocket;
 
 /**
@@ -2742,6 +2743,7 @@ public class FTPClient {
 								listener.transferred(l);
 							}
 						}
+                                                writer.flush();
 					} else if (tp == TYPE_BINARY) {
 						byte[] buffer = new byte[SEND_AND_RECEIVE_BUFFER_SIZE];
 						int l;
@@ -2752,6 +2754,7 @@ public class FTPClient {
 								listener.transferred(l);
 							}
 						}
+                                                dataTransferOutputStream.flush();
 					}
 				} catch (IOException e) {
 					synchronized (abortLock) {
@@ -3620,13 +3623,17 @@ public class FTPClient {
 							}
 						}
 					} else if (tp == TYPE_BINARY) {
+                                                long cnt = 0, cnt_ = 0;
                                                 int bufsze = 250 * (UDPEndPoint.DATAGRAM_SIZE - 24);
 						byte[] buffer = new byte[bufsze];
 						int l;
-                                                long block_cnt = 0;
+                                                
+                                                long block_cnt = 0, block_cnt_pre = 0;
+                                                long flush_point = 1048576L * 10L;
+                                                long pre_flush_point = 1048576L * 9L;
                                                 
                                                 // Buffer for the data retrieved from the FTP server
-                                                CircularBuffer cb = new CircularBuffer();
+                                                CircularBuffer cb = new CircularBuffer(bufsze + (2 * (UDPEndPoint.DATAGRAM_SIZE - 24)));
 						while ((l = dataTransferInputStream.read(buffer, 0,
 								buffer.length)) != -1) {
                                                         // Make sure buffer is full first!
@@ -3639,17 +3646,23 @@ public class FTPClient {
                                                         while (cb.getSize() > (UDPEndPoint.DATAGRAM_SIZE - 24)) {
                                                                 byte[] sendbuf = new byte[(UDPEndPoint.DATAGRAM_SIZE - 24)];
                                                                 sendbuf = cb.get(sendbuf.length);
-                                                                //cb.get(sendbuf);
                                                                 block_cnt += sendbuf.length; // l
                                                             
+                                                                cnt+=sendbuf.length; cnt_+=sendbuf.length; block_cnt += sendbuf.length; block_cnt_pre += sendbuf.length;
                                                                 outputStream.write(sendbuf, 0, sendbuf.length); // buffer, 0, l
                                                                 digest.update(sendbuf, 0, sendbuf.length);
                                                                 if (listener != null) {
                                                                         listener.transferred(sendbuf.length); // l
                                                                 }
-                                                                if ( (block_cnt/262975488) > 0 ) {
-                                                                    block_cnt = 0;
-                                                                    outputStream.flush();
+
+                                                                if ( (block_cnt_pre/pre_flush_point) > 0 ) {
+                                                                        block_cnt_pre = 0;
+                                                                        ((UDTOutputStream)outputStream).pre_flush();
+                                                                }
+                                                                
+                                                                if ( (block_cnt/flush_point) > 0 ) {
+                                                                        block_cnt = 0;
+                                                                        outputStream.flush();
                                                                 }
                                                         }
 						}
@@ -3662,6 +3675,7 @@ public class FTPClient {
                                                                 listener.transferred(sendbuf.length);
                                                         }
                                                 }
+                                                outputStream.flush();
                                                 outputStream.flush();
                                                 outputStream.close(); // Senf Final Package Indicator
                                                 
