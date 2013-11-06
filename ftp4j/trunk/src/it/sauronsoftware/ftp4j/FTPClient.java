@@ -3345,6 +3345,8 @@ public class FTPClient {
 			throws IllegalStateException, IOException,
 			FTPIllegalReplyException, FTPException, FTPDataTransferException,
 			FTPAbortedException {
+//                return download_threaded(fileName, outputStream, restartAt, listener, false);
+
                 String output = "";
             
 		synchronized (lock) {
@@ -3520,12 +3522,15 @@ public class FTPClient {
 		}
                 
                 return output;
+
 	}
 	public String download_udt(String fileName, OutputStream outputStream,
 			long restartAt, FTPDataTransferListener listener)
 			throws IllegalStateException, IOException,
 			FTPIllegalReplyException, FTPException, FTPDataTransferException,
 			FTPAbortedException {
+//                return download_threaded(fileName, outputStream, restartAt, listener, true);
+            
                 String output = "", verify = "";
 		synchronized (lock) {
                     
@@ -3687,6 +3692,170 @@ public class FTPClient {
                                                         verify += Integer.toString( ( md5sum_[i_] & 0xff ) + 0x100, 16).substring( 1 );
 System.out.println("Rec MD5 " + verify + "\tSend MD5 " + output);
 					}
+				} catch (IOException e) {
+					synchronized (abortLock) {
+						if (aborted) {
+							if (listener != null) {
+								listener.aborted();
+							}
+							throw new FTPAbortedException();
+						} else {
+							if (listener != null) {
+								listener.failed();
+							}
+							throw new FTPDataTransferException(
+									"I/O error in data transfer", e);
+						}
+					}
+				} finally {
+					// Closing stream and data connection.
+					if (dataTransferInputStream != null) {
+						try {
+							dataTransferInputStream.close();
+						} catch (Throwable t) {
+							;
+						}
+					}
+					try {
+						dtConnection.close();
+					} catch (Throwable t) {
+						;
+					}
+					// Set to null the instance-level input stream.
+					dataTransferInputStream = null;
+					// Change the operation status.
+					synchronized (abortLock) {
+						wasAborted = aborted;
+						ongoingDataTransfer = false;
+						aborted = false;
+					}
+				}
+			} finally {
+				r = communication.readFTPReply();
+				touchAutoNoopTimer();
+				if (r.getCode() != 150 && r.getCode() != 125) {
+					throw new FTPException(r);
+				}
+				// Consumes the result reply of the transfer.
+				r = communication.readFTPReply();
+				if (!wasAborted && r.getCode() != 226) {
+					throw new FTPException(r);
+				}
+				// ABOR command response (if needed).
+				if (consumeAborCommandReply) {
+					communication.readFTPReply();
+					consumeAborCommandReply = false;
+				}
+			}
+			// Notifies the listener.
+			if (listener != null) {
+				listener.completed();
+			}
+		}
+                
+                return output;
+
+	}
+	public String download_threaded(String fileName, OutputStream outputStream,
+			long restartAt, FTPDataTransferListener listener, boolean udt)
+			throws IllegalStateException, IOException,
+			FTPIllegalReplyException, FTPException, FTPDataTransferException,
+			FTPAbortedException {
+                String output = "";
+            
+		synchronized (lock) {
+			// Is this client connected?
+			if (!connected) {
+				throw new IllegalStateException("Client not connected");
+			}
+			// Is this client authenticated?
+			if (!authenticated) {
+				throw new IllegalStateException("Client not authenticated");
+			}
+			// Select the type of contents.
+			int tp = type;
+			if (tp == TYPE_AUTO) {
+				tp = detectType(fileName);
+			}
+			if (tp == TYPE_TEXTUAL) {
+				communication.sendFTPCommand("TYPE A");
+			} else if (tp == TYPE_BINARY) {
+				communication.sendFTPCommand("TYPE I");
+			}
+			FTPReply r = communication.readFTPReply();
+			touchAutoNoopTimer();
+			if (!r.isSuccessCode()) {
+				throw new FTPException(r);
+			}
+			// Prepares the connection for the data transfer.
+			FTPDataTransferConnectionProvider provider = openDataTransferChannel();
+			// REST command (if supported and/or requested).
+			if (restSupported || restartAt > 0) {
+				boolean done = false;
+				try {
+					communication.sendFTPCommand("REST " + restartAt);
+					r = communication.readFTPReply();
+					touchAutoNoopTimer();
+					if (r.getCode() != 350 && ((r.getCode() != 501 && r.getCode() != 502) || restartAt > 0)) {
+						throw new FTPException(r);
+					}
+					done = true;
+				} finally {
+					if (!done) {
+						provider.dispose();
+					}
+				}
+			}
+			// Local abort state.
+			boolean wasAborted = false;
+			// Send the RETR command.
+			communication.sendFTPCommand("RETR " + fileName);
+			try {
+				UnifiedSocket dtConnection;
+				try {
+					dtConnection = provider.openDataTransferConnection();
+				} finally {
+					provider.dispose();
+				}
+				// Change the operation status.
+				synchronized (abortLock) {
+					ongoingDataTransfer = true;
+					aborted = false;
+					consumeAborCommandReply = false;
+				}
+
+                                // Download the stream *************************
+                                try {
+                                        // New: In a separate thread
+                                        DownloadClient dc = new DownloadClient(dtConnection,
+                                                                    modezEnabled,
+                                                                    listener,
+                                                                    0,
+                                                                    pickCharset(),
+                                                                    outputStream,
+                                                                    SEND_AND_RECEIVE_BUFFER_SIZE,
+                                                                    tp,
+                                                                    udt);
+
+                                        Thread dv_t = new Thread(dc);
+                                        dv_t.start();
+
+                                        int cnt = 0;
+                                        while (dv_t.isAlive()) {
+                                            try {
+                                                Thread.sleep(1000);
+                                            } catch (InterruptedException ex) {
+                                                Logger.getLogger(FTPClient.class.getName()).log(Level.SEVERE, null, ex);
+                                            }
+                                            cnt++;
+                                            if (cnt == 100) {
+                                                cnt = 0;
+                                                noop(); // Send the NOOP command every minute
+                                            }
+                                        }
+                                        output = dc.get_md5();
+                                        dv_t = null;
+                                        dc = null;
 				} catch (IOException e) {
 					synchronized (abortLock) {
 						if (aborted) {
